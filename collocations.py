@@ -98,14 +98,15 @@ collocation('trendy', min_count=1)
 
 
 #---------Use NLTK collocations--------------
-
-
 import nltk
 import re
 import HTMLParser
 
-h = HTMLParser.HTMLParser()
+import datastores.datastore as d
 
+df = d.solr_data_frame('Beauty_Crawl_RSS_Feeds')
+
+h = HTMLParser.HTMLParser()
 for i,d in enumerate(documents):
     documents[i] = h.unescape(documents[i]).encode('utf-8')
 
