@@ -64,15 +64,6 @@ def taxonomy_normalize(sentence):
         matches += 'BODY-'
 
     return matches
-    
-
-
-def noun_phrases(sentence):
-    sentence = 'Kate Hudson and now our editor have had their hair done by Pantene is Celebrity Hairstylist.'
-    tree = parsetree(sentence)
-    search('NP', tree)
-
-
 
 
     
@@ -110,26 +101,65 @@ def find_sentiment(blob):
 
 
 
+def features(sentence):    
+    stop = nltk.corpus.stopwords.words('english')
+    
+    #ptree = parsetree(sentence, relations=True, lemmata=True)
+    ptree = parsetree(sentence)
+    matches = search('NP', ptree)
+    phrases = []
+    for match in matches:
+        filtered_np = [ word for word in match if word.string.lower() not in stop ]
+        if len(filtered_np) > 0:
+            phrases.append( filtered_np )
+    
+    #for sentence in ptree:
+    #    for chunk in sentence.chunks:
+    #        if chunk.type == 'NP':
+    #            print [(w.string, w.type) for w in chunk.words]
+    
+    sentence_sentiment = 'NEU'
+    sent_result = sentiment(sentence)
+    sent = sent_result[0]
+    if sent > .1:
+        sentence_sentiment  ='POS'
+    elif sent < -.1:
+        sentence_sentiment  ='NEG'
+    
+    sentence_subjectivity = 'OBJ'
+    if sent_result[1] > .5:
+        sentence_subjectivity = 'SUB'
+    
+    features = {}
+    features['NP'] = phrases
+    features['SN'] = sentence_sentiment
+    features['SN'] = sentence_sentiment
+    features['SUB'] = sentence_subjectivity
+    
+    return features
+
+
+def print_feature(sentence):    
+    ptree = parsetree(sentence) #, relations=True, lemmata=True)
+    #It matches anything from food to cat food, tasty cat food, the tasty cat food, etc.
+    t = parsetree('tasty cat food')
+    matches = search('DT? RB? JJ? NN+', ptree)
+    for match in matches:
+        print match
+    print '\n'
 
 
 
 
-s = parsetree('It adds the perfect amount of shimmer to your skin , while protecting it from the sun ( it comes in SPF 20 and 40 ).',
-                relations=True, lemmata=True)
-for sentence in s:
-    for chunk in sentence.chunks:
-        print chunk.type, [(w.string, w.type) for w in chunk.words]
 
 
-s = sentiment('It adds the perfect amount of shimmer to your skin , while protecting it from the sun ( it comes in SPF 20 and 40 ).')
 
+sentence = 'It adds the perfect amount of shimmer to your skin , while protecting it from the sun ( it comes in SPF 20 and 40 ).'
 
 
 filename = '/Users/rsteckel/tmp/Observable_body_parts-sentences-BODYPART1.tsv'
-df = pd.read_csv(filename, sep='\t')
-
-
-df['themeword'] = df['themeword'].apply(lambda x: x.strip(string.punctuation).lower())
+df = pd.read_csv(filename, sep='\t', encoding='utf-8')
+#df['themeword'] = df['themeword'].apply(lambda x: x.strip(string.punctuation).lower())
 df['lemmas'] = df['themeword'].apply(lambda x: lemma(x))
 
 
@@ -138,26 +168,55 @@ sorted_df = grby.sort(['lemmas'], ascending=0)
 sorted_df[ sorted_df.lemmas >= 10 ]
 
 
-
+hair_df = df[ df['lemmas'] == 'skin']
 
 records = []
-for i,row in df.iterrows():
+for i,row in hair_df.iterrows():
     try:
+        if i % 100 == 0:
+            print '%d of %d' % (i, len(hair_df))        
+            
         sentence = row.iloc[1]    
         themeword = row.iloc[2] 
+        lemmaword = row.iloc[4]
         
-        blob = TextBlob(sentence)            
-        blob = blob.correct()
+        blob = TextBlob(sentence)        
+        feats = features(blob.string)        
+
+        noun_phrases = [ [ (w.string, w.tag) for w in phrase ] for phrase in feats['NP']]
+        for np in noun_phrases:
+            records.append( (themeword, lemmaword, feats['SN'], feats['SUB'], str(np), sentence) )
         
-        print '%8s %5s %15s - %s' % (themeword, find_sentiment(blob), find_descriptors(blob, themeword),  sentence)
-    except:
+    except Exception as e:
+        print e
         pass
     
 
+feat_df = pd.DataFrame(records, columns=['BP', 'BPLem', 'Sentiment', 'Subjectivity', 'NP', 'Sentence'])
+feat_df.to_excel('/Users/rsteckel/desktop/features.xlsx')
+
+
+grby = feat_df.groupby(['NP']).count()
+sorted_df = grby.sort(['NP'], ascending=0)
+sorted_df[ sorted_df.NP >= 10 ]
+
+sorted_df.to_excel('/Users/rsteckel/desktop/counts.xlsx')
 
 
 
+from pattern.search import taxonomy, WordNetClassifier
 
+taxonomy.classifiers.append(WordNetClassifier())
+
+print taxonomy.parents('skin_tone')
+
+print taxonomy.children('beauty_parts', pos='NN')
+
+from pattern.en import wordnet
+ 
+s = wordnet.synsets('skin')[0]
+
+print taxonomy.parents('cat', pos='VB')
 
 
 
