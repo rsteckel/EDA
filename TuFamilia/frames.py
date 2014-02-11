@@ -208,13 +208,20 @@ from pattern.search import taxonomy, WordNetClassifier
 
 taxonomy.classifiers.append(WordNetClassifier())
 
-print taxonomy.parents('skin_tone')
+print taxonomy.parents('skin')
 
 print taxonomy.children('beauty_parts', pos='NN')
 
+
+
 from pattern.en import wordnet
  
-s = wordnet.synsets('skin')[0]
+for syns in wordnet.synsets('tone'):
+    print syns, syns.hypernym
+
+
+
+S =  wordnet.synsets('tone')
 
 print taxonomy.parents('cat', pos='VB')
 
