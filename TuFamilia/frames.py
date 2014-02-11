@@ -12,24 +12,19 @@ from pattern.en import conjugate, lemma, lexeme
 from pattern.search import search, taxonomy
 
 
-#for f in ('rose', 'lily', 'daisy', 'daffodil', 'begonia'):
-#    taxonomy.append(f, type='flower')
-#t = parsetree('A field of daffodils is white.', lemmata=True)
-#print search('FLOWER', t) 
 
+for f in ('rose', 'lily', 'daisy', 'daffodil', 'begonia'):
+    taxonomy.append(f, type='flower')
 
-for f in ('hair', 'skin'):
-    taxonomy.append(f, type='beauty_parts')
-
-for f in ('face','eye','lip'):
-    taxonomy.append(f, type='makeup')
-
-for f in ('ankle', 'toe', 'heel'):
-    taxonomy.append(f, type='feet')
+for f in ('flower', 'tree'):
+    taxonomy.append(f, type='plant')
     
-for f in ('back','neck','body','hand','head','breast','knee'):
-    taxonomy.append(f, type='body')
 
+t = parsetree('A field of daffodils is white.', lemmata=True)
+print search('PLANT', t) 
+
+taxonomy.parents('daffodil', recursive=True)
+taxonomy.children('plant', recursive=False)
 
 
 #def taxonomy_normalize(sentence):    
@@ -133,7 +128,6 @@ def features(sentence):
     features = {}
     features['NP'] = phrases
     features['SN'] = sentence_sentiment
-    features['SN'] = sentence_sentiment
     features['SUB'] = sentence_subjectivity
     
     return features
@@ -154,27 +148,23 @@ def print_feature(sentence):
 
 
 
-sentence = 'It adds the perfect amount of shimmer to your skin , while protecting it from the sun ( it comes in SPF 20 and 40 ).'
-
-
 filename = '/Users/rsteckel/tmp/Observable_body_parts-sentences-BODYPART1.tsv'
 df = pd.read_csv(filename, sep='\t', encoding='utf-8')
-#df['themeword'] = df['themeword'].apply(lambda x: x.strip(string.punctuation).lower())
 df['lemmas'] = df['themeword'].apply(lambda x: lemma(x))
 
 
 grby = df.groupby(['lemmas']).count()
 sorted_df = grby.sort(['lemmas'], ascending=0)
-sorted_df[ sorted_df.lemmas >= 10 ]
+bpdf = sorted_df[:3]
 
-
-hair_df = df[ df['lemmas'] == 'skin']
+top_bps = set(bpdf['lemmas'].index.values)
+df['topbp'] = df['lemmas'].apply(lambda x: x if x in top_bps else 'other')
 
 records = []
-for i,row in hair_df.iterrows():
+for i,row in df.iterrows():
     try:
         if i % 100 == 0:
-            print '%d of %d' % (i, len(hair_df))        
+            print '%d of %d' % (i, len(df))        
             
         sentence = row.iloc[1]    
         themeword = row.iloc[2] 
@@ -183,7 +173,7 @@ for i,row in hair_df.iterrows():
         blob = TextBlob(sentence)        
         feats = features(blob.string)        
 
-        noun_phrases = [ [ (w.string, w.tag) for w in phrase ] for phrase in feats['NP']]
+        noun_phrases = [ [ (w.string.lower(), w.tag) for w in phrase ] for phrase in feats['NP']]
         for np in noun_phrases:
             records.append( (themeword, lemmaword, feats['SN'], feats['SUB'], str(np), sentence) )
         
@@ -192,15 +182,23 @@ for i,row in hair_df.iterrows():
         pass
     
 
-feat_df = pd.DataFrame(records, columns=['BP', 'BPLem', 'Sentiment', 'Subjectivity', 'NP', 'Sentence'])
-feat_df.to_excel('/Users/rsteckel/desktop/features.xlsx')
 
+
+
+feat_df = pd.DataFrame(records, columns=['BP', 'BPLem', 'Sentiment', 'Subjectivity', 'NP', 'Sentence'])
+#feat_df.to_excel('/Users/rsteckel/desktop/features.xlsx')
+
+bp = 'skin'
+
+feat_df = feat_df[feat_df['BPLem'] == bp]
 
 grby = feat_df.groupby(['NP']).count()
 sorted_df = grby.sort(['NP'], ascending=0)
-sorted_df[ sorted_df.NP >= 10 ]
+sorted_df.to_excel('/Users/rsteckel/desktop/'+bp+'-counts.xlsx')
 
-sorted_df.to_excel('/Users/rsteckel/desktop/counts.xlsx')
+
+
+
 
 
 
