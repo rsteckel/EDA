@@ -33,6 +33,12 @@ for tag in NOUN:
     SIMPLE_TAGS[tag] = 'n'
 for tag in VERB:
     SIMPLE_TAGS[tag] = 'v'
+for tag in ADJECTIVE:
+    SIMPLE_TAGS[tag] = 'a'
+for tag in ADVERB:
+    SIMPLE_TAGS[tag] = 'adv'
+
+
 
 
 def corpus_probability(documents):
@@ -169,6 +175,7 @@ dataframe = dataset.dataframe
 documents = dataset.documents()
 
 
+
 print_common_synsets(documents)
 
 tps = corpus_probability(documents)
@@ -182,5 +189,21 @@ from collections import Counter
 counter = Counter(frames)
 
 
+tags ={ 'a.n', 'b.v', 'c.n'}
+
+'a.n' in tags
 
 
+
+frames = fn.frames(r'Mental_stimulus_stimulus_focus')
+for frame in frames:
+    print set(frame.lexUnit.keys())
+    print [fe for fe in frame.FE]
+    
+    
+
+frame = fn.frames(r'Mental_stimulus_stimulus_focus')[0]
+    
+fes = frame['FE']
+for fe in fes:
+    print fe
