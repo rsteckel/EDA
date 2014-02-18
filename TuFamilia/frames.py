@@ -318,6 +318,10 @@ fn.lus('look.n')[0].frame
 fn.lus('look.n')[1].frame
 
 
+for f in fn.lus('look.n'):
+    print f.frame.name
+
+
 result = fn.frames(r'(?i)erception')
 
 print result

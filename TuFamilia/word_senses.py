@@ -5,6 +5,7 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%m-%d %H:%M')
                     
 import itertools
+from collections import Counter
 import numpy as np
 
 from datasets.customers.tufamilia_dataset import TuFamilia
@@ -179,31 +180,69 @@ documents = dataset.documents()
 print_common_synsets(documents)
 
 tps = corpus_probability(documents)
-
     
 frames = extract_frames(documents)
-
-
-from collections import Counter
-
 counter = Counter(frames)
+counter.most_common(25)
 
-
-tags ={ 'a.n', 'b.v', 'c.n'}
-
-'a.n' in tags
 
 
 
 frames = fn.frames(r'Mental_stimulus_stimulus_focus')
 for frame in frames:
     print set(frame.lexUnit.keys())
-    print [fe for fe in frame.FE]
+    lus = [x for x in frame.lexUnit.values() if 'incorporatedFE' in x ]
+    print('   ', [x.name for x in lus])
     
     
 
-frame = fn.frames(r'Mental_stimulus_stimulus_focus')[0]
     
-fes = frame['FE']
-for fe in fes:
-    print fe
+    
+def print_frame(name_re):    
+    for m_frame in fn.frames(name_re):
+        #m_frame = fn.frame(299)
+        print 'Unincorporated', [x.name for x in m_frame.lexUnit.values() if 'incorporatedFE' not in x]
+        for relation in m_frame['frameRelations']:
+            print '  ', relation 
+        for fe in m_frame['FE']:
+            ailment_lus = [x for x in m_frame.lexUnit.values() if 'incorporatedFE' in x and x.incorporatedFE == fe]
+            print '  ', fe
+            print '  ', [x.name for x in ailment_lus]
+        print '\n'    
+
+
+
+print_frame(r'Emotions_of_mental_activity')
+
+
+
+
+
+
+
+
+
+
+
+from pattern.web import Twitter
+print Twitter().trends(cached=False)
+ 
+
+
+ 
+ 
+from pattern.web import DBPedia
+
+sparql = '\n'.join((
+    'prefix dbo: <http://dbpedia.org/ontology/>',
+    'select ?disease where {',
+    '    ?disease a dbo:Disease.',
+    '}'
+))
+for r in DBPedia().search(sparql, start=1, count=1000):
+    print '%s' % (r.disease.name)
+    
+    
+    
+    
+    

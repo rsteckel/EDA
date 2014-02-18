@@ -40,9 +40,7 @@ def load_taxonomy(filename, use_stem=True):
 
 
 
-def extract_noun_phrases(body_part_name):
-    body_part_name = 'skin'
-    
+def extract_noun_phrases(body_part_name):    
     stop = nltk.corpus.stopwords.words('english')    
     filename = '/Users/rsteckel/tmp/Observable_body_parts-sentences-BODYPART1.tsv'
     
@@ -64,114 +62,108 @@ def extract_noun_phrases(body_part_name):
 
 
 
-def categorize_phrases(phrases, body_part_name, use_stem=True):
+
+
+def categorize_phrases(sentphrases, body_part_name, use_stem=True):
     stemmer = nltk.stem.PorterStemmer()
     
     records = []    
-    for phrase in phrases:
-        matches = []      
-        parent = 'NA'
+    for i,row in sentphrases.iterrows():
+        sentence = row['sentence']
+        phrase = row['phrase']
+        
+        categories = []
+        parents = []
+        
         for word in phrase:
             if use_stem == True:
-                match = taxonomy.classify(stemmer.stem(word.string))
+                category = taxonomy.classify(stemmer.stem(word.string))
             else:
-                match = taxonomy.classify(word.string)
-                        
-            #if word.string == body_part_name:
-            #    match = body_part_name
+                category = taxonomy.classify(word.string)
                 
-            if match:
-                parent = ' '.join(taxonomy.parents(match))
-                matches.append(match)
-        
-        score = 1.*len(matches) * (len(matches) / (1. * len(phrase)))
+            if category:
+                categories.append(category)
+                parent = taxonomy.parents(category)
+                
+                if parent and parent[0] != category:
+                    parents.append(parent[0])
+                else:
+                    parents.append('')
+                
+                
+            #elif word.string == body_part_name:
+            #    categories.append(body_part_name)
+            #    parents.append(body_part_name)
+                
+        assert(len(categories) == len(parents))
         
         phrase_str = ' '.join([ w.string+'/'+w.tag for w in phrase ])
-        match_str = ' '.join([ m for m in matches ])
+        phrase_str = phrase_str.replace(',', '')
         
-        records.append( ( phrase_str, match_str, score, parent) )
+        sentence_str = sentence.replace(',', '')        
+        
+        score = len(categories) * (len(categories) / (1.*len(phrase))) 
+        for i,category in enumerate(categories):            
+            records.append( ( body_part_name, sentence_str, phrase_str, category, parents[i], score) )
             
-    df = pd.DataFrame( records, columns=['phrase', 'category', 'score', 'parent'])
+    df = pd.DataFrame( records, columns=['body_part', 'sentence', 'phrase', 'category', 'parent', 'score'])
                 
     return df
- 
-
- 
-def cluster_categories(category_tags):    
-    catlabels = pd.Categorical.from_array(category_tags)
-
-    N = len(category_tags)
-    distanceMatrix = csr_matrix((N,N))
-    
-    distance_cache = {}    
-    
-    for i in range(N):
-        if i % 100 == 0:
-            print '%d of %d' % (i, N)
-                
-        for j in range(i, N):                
-            if i == j:
-                distanceMatrix[i,j] = 0
-            else:
-                a = category_tags.iloc[i].split('_')
-                b = category_tags.iloc[j].split('_')
-                
-                a = [ w for w in a if w != 'skin']
-                b = [ w for w in b if w != 'skin']
-
-                a.sort()
-                b.sort()
-                
-                key = ''.join(a)+'-'+''.join(b)
-                if distance_cache.has_key(key):
-                    distance = distance_cache[key]
-                else:                    
-                    distance = edit_distance(a,b)
-                    distance_cache[key] = distance
-                
-                distanceMatrix[i,j] = distance
-                distanceMatrix[j,i] = distance
-                
-
-    dm = ssd.squareform(distanceMatrix.todense())
-
-    dendrogram(linkage(dm, method='complete'), 
-               color_threshold=0.3, 
-               leaf_label_func=lambda x: catlabels[x],
-               leaf_font_size=8)
-
-    f = gcf()
-    f.set_size_inches(8, 4);
 
 
 
-def binarize(category_tags, filename):
+
+def binarize(category_df, filename):
     lb = LabelBinarizer()    
-    
-    records = []
-    for t in category_tags:
-        records.append(t.split())
-    
-    lb.fit(records)
-    
-    X = lb.transform(records)    
-    df = pd.DataFrame(X, columns=lb.classes_)
+
+    lb.fit(category_df['category'].unique().tolist())
+
+    #grouped = category_df.groupby(['body_part', 'sentence', 'phrase'])
+    grouped = category_df.groupby(['body_part', 'sentence'])
+    categories = []
+    for key,cats in grouped.category:
+        categories.append(list(cats))
+
+    X = lb.fit_transform(categories)    
+
+    Xint = X.astype(int)
+    coocc = Xint.T.dot(Xint)
+    df = pd.DataFrame(coocc, columns=lb.classes_)
     df.to_csv(filename, index=False)
-    
- 
-load_taxonomy('/Users/rsteckel/tmp/EYE_TAXONOMY.csv') 
+
+
+
+
+taxonomy.clear()
 load_taxonomy('/Users/rsteckel/tmp/SKIN_TAXONOMY.csv')
-load_taxonomy('/Users/rsteckel/tmp/HAIR_TAXONOMY.csv')
-
 body_part = 'skin'
-
-noun_phrases = extract_noun_phrases(body_part)
-noun_phrases.head()
-category_df = categorize_phrases(noun_phrases, body_part)
-
+sentphrases = extract_noun_phrases(body_part)
+skin_category_df = categorize_phrases(sentphrases, body_part)
+binarize(skin_category_df, '/Users/rsteckel/tmp/skin-cooc.csv')
 
 
-category_df.to_excel('/Users/rsteckel/desktop/categories.xlsx', index=False)
+taxonomy.clear()
+load_taxonomy('/Users/rsteckel/tmp/EYE_TAXONOMY.csv') 
+body_part = 'eye'
+sentphrases = extract_noun_phrases(body_part)
+eye_category_df = categorize_phrases(sentphrases, body_part)
+binarize(eye_category_df, '/Users/rsteckel/tmp/eye-cooc.csv')
+
+
+taxonomy.clear()
+load_taxonomy('/Users/rsteckel/tmp/HAIR_TAXONOMY.csv')
+body_part = 'hair'
+sentphrases = extract_noun_phrases(body_part)
+hair_category_df = categorize_phrases(sentphrases, body_part)
+binarize(hair_category_df, '/Users/rsteckel/tmp/hair-cooc.csv')
+
+
+
+
+category_df = pd.concat([skin_category_df, eye_category_df, hair_category_df])
+category_df.to_csv('/Users/rsteckel/desktop/categories.csv', index=False, encoding='utf-8')
+
+
 
 
 
@@ -286,4 +278,18 @@ masi_distance(set(a), set(b))
 
 
 
+
+
+
+from pattern.web import DBPedia
+
+sparql = '\n'.join((
+    'prefix dbo: <http://dbpedia.org/ontology/>',
+    'select ?person ?place where {',
+    '    ?person a dbo:President.',
+ '    ?person dbo:birthPlace ?place.',
+ '}'
+))
+for r in DBPedia().search(sparql, start=1, count=10):
+print '%s (%s)' % (r.person.name, r.place.name)
 
