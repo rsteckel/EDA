@@ -3,11 +3,13 @@ import datastores.datastore as ds
 
 COLLECTION = 'Health_Crawl_RSS_Feeds'
 #COLLECTION = 'Health_Crawl_RSS_Feeds'
-FIELDS = [ 'title','content,' 'pubDate_dt', 'tags_s', 'lang','author']
+FIELDS = [ 'id','title','content,' 'pubDate_dt', 'tags_s', 'lang','author']
 QUERY = None
+CACHE=False
 
 #####  Read solr data into 'dataframe' #####
-dataframe = ds.solr_data_frame(COLLECTION, FIELDS, QUERY)
+dataframe=[]
+dataframe = ds.solr_data_frame(COLLECTION, FIELDS, QUERY,CACHE)
 ##print(dataframe['content'][373])
 length_dataframe=len(dataframe)
 
@@ -34,11 +36,9 @@ print 'Number of english documents = %d' %(cnt_eng)
 print 'Number of spanish documents = %d' %(cnt_es)
 
 ### For each blog pick the top 'n' medical ailments ###
-from nltk.corpus import framenet as fn
 from pattern.en import parsetree
 from collections import Counter
 import pandas as pd
-
 
 NOUN = {'NN','NNS','NNP','NNPS'}
 VERB = {'VB','VBZ','VBP','VBD','VBN','VBG'}
@@ -54,15 +54,24 @@ for tag in ADJECTIVE:
 for tag in ADVERB:
     SIMPLE_TAGS[tag] = 'adv'
 
-f=fn.frame(239)
-print(f.name)
-set_lex_units=set(f.lexUnit)
+from xlrd import open_workbook
+book = open_workbook("/Users/sriWork/Desktop/health_first_classifier.xls")
+sheet=book.sheet_by_index(0)
+list_lexunits=[]
+cat_lexunits=[]
+for row_index in range(sheet.nrows):
+    col_index=0
+    list_lexunits.append(sheet.cell(row_index,col_index).value)
+    cat_lexunits.append(sheet.cell(row_index,col_index+1).value)
+set_lex_units=set(list_lexunits)
 print(set_lex_units)
 #doc_content=dataframe['content'][5]
 
 """
 #### Write contents to excel file from framenet lexical units ####
 import xlwt
+from nltk.corpus import framenet as fn
+f=fn.frame(239)
 book = xlwt.Workbook(encoding="utf-8")
 sheet1 = book.add_sheet("Sheet 1")
 cnt=0
@@ -74,13 +83,13 @@ for i in f.lexUnit:
 book.save("/Users/sriWork/Desktop/health_first_classifier.xls")
 #####
 """
-
+"""
 #### Add Contents to excel file
 from xlrd import open_workbook
 from xlutils.copy import copy
 import xlwt
-class_lexunit=1
-add_list=['fibromyalgia.n']
+class_lexunit=2
+add_list=['breakfast.n','lunch.n','dinner.n']
 book = open_workbook("/Users/sriWork/Desktop/health_first_classifier.xls")
 sheet=book.sheet_by_index(0)
 wb = copy(book)
@@ -101,12 +110,14 @@ for i in add_list:
         total_rows=total_rows+1
 wb.save("/Users/sriWork/Desktop/health_first_classifier.xls")
 #######
-
+"""
 
 def get_medical_ailments(doc_content,n):
 
     ptree = parsetree(doc_content, tokenize=True, tags=True, chunks=False, relations=False, lemmata=True, encoding='utf-8')
     list_lex_units=[]
+    cnt_medical_condition=0
+    cnt_wellness=0
     for sentence in ptree:
         for word in sentence.words:
             pos_tag=word.pos
@@ -119,13 +130,27 @@ def get_medical_ailments(doc_content,n):
                 key = lemma+'.'+simple_tag
             else:
                 key = lemma
+            #print key
 
             if (key in set_lex_units):
                 list_lex_units.append(key)
+                if cat_lexunits[list_lexunits.index(key)]==1:
+                    cnt_medical_condition=cnt_medical_condition+1
+                elif cat_lexunits[list_lexunits.index(key)]==2:
+                    cnt_wellness=cnt_wellness+1
+                #print key
+                #print list_lexunits.index(key)
+                #print '/n'
+    if ((cnt_wellness==0) & (cnt_medical_condition==0)):
+        topics_health={'medical_condition':0,'wellness':0}
+    else:
+        topics_health={'medical_condition':100.0*cnt_medical_condition/(cnt_medical_condition+cnt_wellness),'wellness':100.0*cnt_wellness/(cnt_medical_condition+cnt_wellness)}
 
     counts_lex_units=Counter(list_lex_units)
-    topics_medical_ailments=counts_lex_units.most_common(n)
-    return topics_medical_ailments
+    print counts_lex_units
+    print topics_health
+    #topics_medical_ailments=counts_lex_units.most_common(n)
+    return topics_health
 
     #print(doc_content)
     #print(list_lex_units)
@@ -148,14 +173,15 @@ for i in range(0,length_dataframe):
         print([dataframe['content'][i]])
         print([dataframe['id'][i]])
         #pd.reset_option('display.max_columns')
+        print i
         topics_medical_ailments=get_medical_ailments(dataframe['content'][i],n)
         #if topics_medical_ailments[1]==[u'healthy.a']:
             #cnt_incomplete_blogs=cnt_incomplete_blogs+1
             #print([dataframe['content'][i]])
             #print([dataframe['id'][i]])
-        print i
-        print(topics_medical_ailments)
-        print ('/n')
+
+        #print(topics_medical_ailments)
+        print ('\n')
 #print 'Number of english documents = %d' %(cnt_incomplete_blogs)
 
 """
