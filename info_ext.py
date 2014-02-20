@@ -73,7 +73,8 @@ f = fn.frame(66)
 
 f.ID
 f.definition
-f.lexUnit
+set(f.lexUnit.keys())
+
 [x.name for x in f.FE]
 
 f.frameRelations

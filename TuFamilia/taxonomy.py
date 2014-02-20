@@ -41,11 +41,23 @@ class POSCategory:
 
     
 class Taxonomy:
-    def __init__(self, root_name='root', pos_sensitive=True):
+    def __init__(self, root_name='root', pos_sensitive=False):
         self.root = root_name
-        self.taxonomy = PS.Taxonomy()
+        self.pat_taxonomy = PS.Taxonomy()
         self.pos_category = POSCategory()
         self.pos_sensitive = pos_sensitive
+    
+    def add_insight(self, name, domain):
+        #TODO: Make sure 'domain' exists
+        self.add_category(name, domain)
+            
+    def add_entity(self, name, insight):
+        #TODO: Make sure 'insight' exists
+        self.add_category(name, insight)
+    
+    def add_example(self, wn_prototype, entity):
+        #TODO: Make sure 'entity' exists
+        self.add_hyponyms(wn_prototype, entity)
     
     def add_framenet_frame(self, name, parent=None, related=None):
         """ related: frame relation name (i.e. subFrame)"""
@@ -75,8 +87,8 @@ class Taxonomy:
                             self.add_category(tokens[0], related_frame.name, pos=tokens[1])
         
     def add_hyponyms(self, synset_id, parent):
-        expanded = self.expand_hyponyms(synset_id)
-        for hyponym in expanded:            
+        expanded = expand_hyponyms(synset_id)
+        for hyponym in expanded:
             self.add_category(hyponym.name(), parent, pos=hyponym.pos())
             
     def add_category(self, name, parent=None, pos=None, synonyms=[]):            
@@ -85,21 +97,21 @@ class Taxonomy:
             parent = self.root
             
         parent_key = self._build_term_key(str(parent))
-        if not self.taxonomy.has_key(parent_key): #Add parent to the root if it doesn't exist
-            self.taxonomy.append(parent_key, type=self.root)
+        if not self.pat_taxonomy.has_key(parent_key): #Add parent to the root if it doesn't exist
+            self.pat_taxonomy.append(parent_key, type=self.root)
         
-        print '\tAdding term %s  %s' % (term_key, parent_key)
-        self.taxonomy.append(term_key, type=parent_key)
+        if not self.pat_taxonomy.has_key(term_key):
+            self.pat_taxonomy.append(term_key, type=parent_key)
         
         if synonyms:
             for synonym in synonyms:
                 synonym_key = self._build_term_key(synonym, pos='na', lem=True)
-                self.taxonomy.append(synonym_key, type=term_key)           
+                self.pat_taxonomy.append(synonym_key, type=term_key)           
 
     def search(self, name, pos=None, retry=False):
         match = self.taxonomy.classify(self._build_term_key(name, pos))
         if not match and retry:             
-            match = self.taxonomy.classify(self._build_term_key(name, None))
+            match = self.pat_taxonomy.classify(self._build_term_key(name, None))
         if match:
             match = match.split('.')[0]
         return match
@@ -108,13 +120,13 @@ class Taxonomy:
         return PS.search(name, text)
 
     def parents(self, name, pos=None, recurse=False):
-        matches = self.taxonomy.parents(self._build_term_key(name, pos), recursive=recurse)
+        matches = self.pat_taxonomy.parents(self._build_term_key(name, pos), recursive=recurse)
         if matches:
             matches = [ match.split('.')[0] for match in matches]
         return matches
 
     def children(self, name, pos=None, recurse=False, simplify=True):
-        matches = self.taxonomy.children(self._build_term_key(name, pos), recursive=recurse)
+        matches = self.pat_taxonomy.children(self._build_term_key(name, pos), recursive=recurse)
         if matches:
             if simplify:
                 matches = [ match.split('.')[0] for match in matches]
@@ -129,23 +141,6 @@ class Taxonomy:
 
     def frames(self, lu_name):
         return fn.frames_by_lemma(lu_name)                
-
-    def expand_hyponyms(self, synset_id, visited=set()):
-        ss = None
-        try:
-            ss = wn.synset(synset_id)
-        except:
-            pass
-        
-        if ss is None:
-            return []
-            
-        for s in ss.hyponyms():
-            if s not in visited:
-                self.expand_hyponyms(s.name())
-                visited.add(s)
-                
-        return visited
 
     def _build_term_key(self, name, pos=None, lem=False):
         if name == self.root:
@@ -164,17 +159,41 @@ class Taxonomy:
             term = lemma(name.lower())
         else:
             term = name.lower()        
-            
-        tag = ''
-        if pos: #Normalize to the simplified tag (if a tag was given)
-            if pos not in self.pos_category.SIMPLIFIED:
-                tag = self.pos_category.simplify_tag(pos)
+        
+        if self.pos_sensitive:
+            tag = ''
+            if pos: #Normalize to the simplified tag (if a tag was given)
+                if pos not in self.pos_category.SIMPLIFIED:
+                    tag = self.pos_category.simplify_tag(pos)
+                else:
+                    tag = pos
             else:
-                tag = pos
+                tag = 'na'
+            return term+'.'+tag
         else:
-            tag = 'na'
+            return term #TODO:  Handle pos in taxonomy search
+
+
+
+def expand_hyponyms(synset_id):
+    def _dfs(synset_id, visited=set()):
+        ss = None
+        try:
+            ss = wn.synset(synset_id)
+        except:
+            pass
+        
+        if ss is None:
+            return []
             
-        return term+'.'+tag
+        for s in ss.hyponyms():
+            if s not in visited:
+                _dfs(s.name(), visited)
+                visited.add(s)
+                
+        return visited
+        
+    return _dfs(synset_id)
 
 
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from taxonomy import Taxonomy, print_taxonomy
-
+from semantic_search import TaxonomySearch
 from nltk.corpus import framenet as fn
 
 
@@ -35,40 +35,6 @@ lu = fe_lus[3]
 
 
 
-taxonomy = Taxonomy('o360')
-
-
-taxonomy.add_category('disease', 'health')
-taxonomy.add_hyponyms('disease.n.01', 'disease')
-
-print_taxonomy(taxonomy)
-
-taxonomy.add_category('cat.n', 'animal', synonyms=['feline', 'tomcat', 'kitten'])
-taxonomy.add_category('dog.n', 'animal', synonyms=['puppy', 'mutt'])
-taxonomy.add_category('car', 'auto')
-taxonomy.add_category('truck', 'auto')
-
-print_taxonomy(taxonomy)
-
-taxonomy.add_category('medical', 'health')
-taxonomy.add_framenet_frame('Medical_conditions', 'medical')
-
-
-print_taxonomy(taxonomy)
-
-
-
-taxonomy.add_framenet_frame(r'^Causation$', 'reasons')
-taxonomy.add_framenet_frame('Emotions_of_mental_activity', 'wellness', related='subFrame')
-
-print_taxonomy(taxonomy)
-
-
-
-
-
-
-
 frames = fn.frames(r'^Causation$')
 
 frame = frames[0]  #Take first match
@@ -90,51 +56,83 @@ for relation in relations:
             print '  ', lu
 
 
-taxonomy.frames('approach')
-
-
-taxonomy.children('causation')
 
 
 
 
+document = """Cancer is a serious disease that affects many people. Tumors are 
+                the most common sign of cancer. Aerobics can prevent it."""
 
 
-
-print taxonomy.search('kitten', 'NN')
-print taxonomy.search('kitten')
-print taxonomy.search('kitten', 'NN', retry=True)
-
-print taxonomy.parents('cancer.n', recurse=True)
-print taxonomy.parents('cancer', 'n', recurse=True)
-print taxonomy.parents('cancer', 'NN', recurse=False)
-
-print taxonomy.search('hernia', 'NN')
-print taxonomy.parents('hernia', 'NN', recurse=False)
-print taxonomy.parents('hernia', 'NN', recurse=True)
-
-print taxonomy.children('Medical_conditions')
+taxonomy = Taxonomy('o360')
+taxonomy.add_category('disease', 'health')
+taxonomy.add_hyponyms('disease.n.01', 'disease')
+taxonomy.add_hyponyms('ill_health.n.01', 'disease')
+taxonomy.add_category('exercise', 'health')
+taxonomy.add_hyponyms('exercise.n.01', 'exercise')
 
 
 
 
 
+taxonomy = Taxonomy('o360')
+taxonomy.add_insight('treat-insight', 'health') #Add insight (relation) to 'health' domain
+
+taxonomy.add_entity('disease', 'treat-insight')  
+taxonomy.add_example('ill_health.n.01', 'disease')
+taxonomy.add_example('disease.n.01', 'disease')
 
 
-from nltk.corpus import framenet as fn
-docs = fn.documents()
-len(docs)
-doc = docs[0]
+taxonomy.add_entity('target', 'treat-insight')  
+taxonomy.add_example('treat.v.03', 'target')
+taxonomy.add_example('cure.v.01', 'target')
+taxonomy.add_example('heal.v.01', 'target')
+taxonomy.add_example('alleviate.v.01', 'target')
+taxonomy.add_example('better.v.03', 'target')
+
+
+taxonomy.add_entity('treatment', 'treat-insight')  
+taxonomy.add_example('treatment.n.01', 'treatment')
+taxonomy.add_example('care.n.01', 'treatment')
+taxonomy.add_example('medicine.n.02', 'treatment')
+taxonomy.add_example('surgery.n.04', 'treatment')
+taxonomy.add_example('roentgenogram.n.01', 'treatment')
+taxonomy.add_example('remedy.n.02', 'treatment')
 
 
 
-import Orange
-data = Orange.data.Table("market-basket.basket")
+print_taxonomy(taxonomy)
 
-rules = Orange.associate.AssociationRulesSparseInducer(data, support=0.3)
-print "%4s %4s  %s" % ("Supp", "Conf", "Rule")
-for r in rules[:5]:
-    print "%4.1f %4.1f  %s" % (r.support, r.confidence, r)
+
+
+s = TaxonomySearch(taxonomy)
+
+s.search(document, pattern='disease') #Search for the word 'disease'
+
+s.search(document, pattern='DISEASE') #Search for anything in the DISEASE taxonomy category
+
+s.search(document, pattern='{JJ} DISEASE') #Search for adjectives in front of anything in the DISEASE taxonomy category
+
+s.search(document, pattern='EXERCISE') #Search for anything in the EXERCISE taxonomy category
+
+
+
+
+from datasets.customers.tufamilia_dataset import TuFamilia
+
+dataset = TuFamilia('beauty')
+
+dataset.load()
+dataset.store()
+
+documents = dataset.documents()
+documents = documents[:250]
+
+for document in documents:
+    s.search(document, pattern='TREATMENT * DISEASE or DISEASE * TREATMENT')
+
+
+
 
 
 
