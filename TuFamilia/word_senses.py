@@ -45,7 +45,7 @@ for tag in ADVERB:
 def corpus_probability(documents):
     term_probs = []
     vectorizer = TfidfVectorizer(ngram_range=(1,1), use_idf=False,
-                             stop_words='english', min_df=4, max_df=.90)
+                             stop_words='english', min_df=4, max_df=.95)
                 
     X = vectorizer.fit_transform(documents)
     totaltfidf = X.sum()
@@ -162,11 +162,28 @@ def extract_frames(documents):
 
 
 
+def print_frame(name_re):    
+    for m_frame in fn.frames(name_re):
+        #m_frame = fn.frame(299)
+        print 'Unincorporated', [x.name for x in m_frame.lexUnit.values() if 'incorporatedFE' not in x]
+        for relation in m_frame['frameRelations']:
+            print '  ', relation 
+        for fe in m_frame['FE']:
+            ailment_lus = [x for x in m_frame.lexUnit.values() if 'incorporatedFE' in x and x.incorporatedFE == fe]
+            print '  ', fe
+            print '  ', [x.name for x in ailment_lus]
+        print '\n'  
+
+
+
+
+
 
 
 
 
 dataset = TuFamilia('health', query={'lang':'en'})
+
 dataset.load()
 
 dataset.store()
@@ -181,9 +198,12 @@ print_common_synsets(documents)
 
 tps = corpus_probability(documents)
     
+    
+    
 frames = extract_frames(documents)
 counter = Counter(frames)
 counter.most_common(25)
+
 
 
 
@@ -194,31 +214,48 @@ for frame in frames:
     lus = [x for x in frame.lexUnit.values() if 'incorporatedFE' in x ]
     print('   ', [x.name for x in lus])
     
-    
-
-    
-    
-def print_frame(name_re):    
-    for m_frame in fn.frames(name_re):
-        #m_frame = fn.frame(299)
-        print 'Unincorporated', [x.name for x in m_frame.lexUnit.values() if 'incorporatedFE' not in x]
-        for relation in m_frame['frameRelations']:
-            print '  ', relation 
-        for fe in m_frame['FE']:
-            ailment_lus = [x for x in m_frame.lexUnit.values() if 'incorporatedFE' in x and x.incorporatedFE == fe]
-            print '  ', fe
-            print '  ', [x.name for x in ailment_lus]
-        print '\n'    
-
 
 
 print_frame(r'Emotions_of_mental_activity')
 
 
 
+frames = []
+frames += fn.frames(r'.*(?i)mental.*')
+frames += fn.frames(r'.*(?i)medical.*')
+
+for frame in frames:
+    print frame['name']
+    #print [ lu for lu in frame['lexUnit'] ]
+    print [ relation['subFrameName'] for relation in frame['frameRelations'] if relation['subFrameName'] != frame['name'] ]
+    print ''
 
 
 
+frames = fn.frames('Coming_to_believe')
+
+
+
+def print_subframes(frame):
+    relations = frame['frameRelations']
+    for relation in relations:
+        subframe_name = relation['subFrameName']
+        if subframe_name != frame.name:
+            subframe = relation['subFrame']
+            lus = subframe['lexUnit'].keys()
+            for lu in lus:
+                print subframe.name, lu
+
+
+frames = fn.frames('Emotions_by_stimulus')
+for frame in frames:
+    print frame.name
+    print_subframes(frame)
+
+
+
+
+frame.name
 
 
 
@@ -228,7 +265,7 @@ from pattern.web import Twitter
 print Twitter().trends(cached=False)
  
 
-
+import textblob
  
  
 from pattern.web import DBPedia

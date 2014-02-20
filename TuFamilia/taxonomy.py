@@ -7,9 +7,9 @@ logging.basicConfig(level=logging.DEBUG,
 import collections
 
 from nltk.corpus import framenet as fn
+from nltk.corpus import wordnet as wn
 import nltk
 
-import pattern.en.wordnet as wn
 import pattern.search as PS
 from pattern.en import lemma
 
@@ -74,7 +74,12 @@ class Taxonomy:
                             tokens = lu.split('.')
                             self.add_category(tokens[0], related_frame.name, pos=tokens[1])
         
-    def add_category(self, name, parent=None, pos=None, synonyms=[], wn_synonyms=False):            
+    def add_hyponyms(self, synset_id, parent):
+        expanded = self.expand_hyponyms(synset_id)
+        for hyponym in expanded:            
+            self.add_category(hyponym.name(), parent, pos=hyponym.pos())
+            
+    def add_category(self, name, parent=None, pos=None, synonyms=[]):            
         term_key = self._build_term_key(name, pos)                
         if not parent:   
             parent = self.root
@@ -89,14 +94,7 @@ class Taxonomy:
         if synonyms:
             for synonym in synonyms:
                 synonym_key = self._build_term_key(synonym, pos='na', lem=True)
-                self.taxonomy.append(synonym_key, type=term_key) 
-                
-        if wn_synonyms:
-            syns = wn.synsets(name, pos)
-            syn = syns[0]
-            for synonym in syn.synonyms:
-                synonym_key = self._build_term_key(synonym, pos='na', lem=True)
-                self.taxonomy.append(synonym_key, type=term_key)                 
+                self.taxonomy.append(synonym_key, type=term_key)           
 
     def search(self, name, pos=None, retry=False):
         match = self.taxonomy.classify(self._build_term_key(name, pos))
@@ -105,6 +103,9 @@ class Taxonomy:
         if match:
             match = match.split('.')[0]
         return match
+        
+    def search_text(self, name, text):
+        return PS.search(name, text)
 
     def parents(self, name, pos=None, recurse=False):
         matches = self.taxonomy.parents(self._build_term_key(name, pos), recursive=recurse)
@@ -112,10 +113,11 @@ class Taxonomy:
             matches = [ match.split('.')[0] for match in matches]
         return matches
 
-    def children(self, name, pos=None, recurse=False):
+    def children(self, name, pos=None, recurse=False, simplify=True):
         matches = self.taxonomy.children(self._build_term_key(name, pos), recursive=recurse)
         if matches:
-            matches = [ match.split('.')[0] for match in matches]
+            if simplify:
+                matches = [ match.split('.')[0] for match in matches]
             matches.sort()
         return matches
 
@@ -126,14 +128,35 @@ class Taxonomy:
         return fn.lus(lu_name)
 
     def frames(self, lu_name):
-        return fn.frames_by_lemma(lu_name)
+        return fn.frames_by_lemma(lu_name)                
+
+    def expand_hyponyms(self, synset_id, visited=set()):
+        ss = None
+        try:
+            ss = wn.synset(synset_id)
+        except:
+            pass
+        
+        if ss is None:
+            return []
+            
+        for s in ss.hyponyms():
+            if s not in visited:
+                self.expand_hyponyms(s.name())
+                visited.add(s)
+                
+        return visited
 
     def _build_term_key(self, name, pos=None, lem=False):
         if name == self.root:
             return name
 
         tokens = name.split('.')
-        if len(tokens) > 1:
+        if len(tokens) == 3:
+            name = tokens[0]
+            pos = tokens[1]
+            synid = tokens[2]
+        elif len(tokens) == 2:
             name = tokens[0]
             pos = tokens[1]
 

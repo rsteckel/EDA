@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from taxonomy import Taxonomy, print_taxonomy
 
-
+from nltk.corpus import framenet as fn
 
 
 frames = fn.frames('Medical_conditions')
@@ -14,12 +14,6 @@ for lu in lus:
         print '%20s %10s' % (lu.name, lu['incorporatedFE'])
     else:
         print '%20s %10s' % (lu.name, 'No IFE')
-
-
-
-
-frame = frames[0]  #Take first match
-
 
 for relation in frame['frameRelations']:
     print '  ', relation 
@@ -43,52 +37,68 @@ lu = fe_lus[3]
 
 taxonomy = Taxonomy('o360')
 
+
+taxonomy.add_category('disease', 'health')
+taxonomy.add_hyponyms('disease.n.01', 'disease')
+
+print_taxonomy(taxonomy)
+
 taxonomy.add_category('cat.n', 'animal', synonyms=['feline', 'tomcat', 'kitten'])
-taxonomy.add_category('dog', 'animal', synonyms=['puppy', 'mutt'])
+taxonomy.add_category('dog.n', 'animal', synonyms=['puppy', 'mutt'])
 taxonomy.add_category('car', 'auto')
 taxonomy.add_category('truck', 'auto')
 
-taxonomy.add_framenet_frame('Medical_conditions', 'medical', related='subFrame')
+print_taxonomy(taxonomy)
+
+taxonomy.add_category('medical', 'health')
+taxonomy.add_framenet_frame('Medical_conditions', 'medical')
+
+
+print_taxonomy(taxonomy)
+
+
+
 taxonomy.add_framenet_frame(r'^Causation$', 'reasons')
 taxonomy.add_framenet_frame('Emotions_of_mental_activity', 'wellness', related='subFrame')
 
+print_taxonomy(taxonomy)
 
 
 
 
-frames = fn.frames()
+
+
+
+frames = fn.frames(r'^Causation$')
 
 frame = frames[0]  #Take first match
 
 
-lus = frame['lexUnit'].keys()  
+lus = frame['lexUnit'].values()  
 for lu in lus:
-    tokens = lu.split('.')
-    self.add_category(tokens[0], frame.name, pos=tokens[1])
-
-if related:
-    relations = frame['frameRelations']
-    for relation in relations:
-        related_frame = relation[related]
-        if related_frame.name != frame.name:
-            self.add_category(related_frame.name, frame.name)
-            
-            lus = related_frame['lexUnit'].keys()
-            for lu in lus:
-                tokens = lu.split('.')
-                self.add_category(tokens[0], related_frame.name, pos=tokens[1])
+    print lu.name
 
 
 
+relations = frame['frameRelations']
+for relation in relations:
+    related_frame = relation['subFrame']
+    if related_frame.name != frame.name:
+        print related_frame.name
+        lus = related_frame['lexUnit'].keys()
+        for lu in lus:
+            print '  ', lu
 
 
+taxonomy.frames('approach')
 
+
+taxonomy.children('causation')
 
 
 
 
 
-print_taxonomy(taxonomy)
 
 
 print taxonomy.search('kitten', 'NN')
@@ -111,7 +121,10 @@ print taxonomy.children('Medical_conditions')
 
 
 
-
+from nltk.corpus import framenet as fn
+docs = fn.documents()
+len(docs)
+doc = docs[0]
 
 
 
