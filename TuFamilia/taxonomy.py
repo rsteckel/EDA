@@ -4,8 +4,6 @@ logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)-8s %(funcName)s %(message)s',
                     datefmt='%m-%d %H:%M')
                     
-import collections
-
 from nltk.corpus import framenet as fn
 from nltk.corpus import wordnet as wn
 import nltk
@@ -48,16 +46,22 @@ class Taxonomy:
         self.pos_sensitive = pos_sensitive
     
     def add_insight(self, name, domain):
-        #TODO: Make sure 'domain' exists
+        if not self._exists(domain):
+            self.add_category(domain)
+            
         self.add_category(name, domain)
             
     def add_entity(self, name, insight):
-        #TODO: Make sure 'insight' exists
+        if not self._exists(insight):
+            raise Exception('Need to add insight before entity')
+            
         self.add_category(name, insight)
     
-    def add_example(self, wn_prototype, entity):
-        #TODO: Make sure 'entity' exists
-        self.add_hyponyms(wn_prototype, entity)
+    def add_example(self, wn_example, entity):
+        if not self._exists(entity):
+            raise Exception('Need to add entity before example')
+            
+        self.add_hyponyms(wn_example, entity)
     
     def add_framenet_frame(self, name, parent=None, related=None):
         """ related: frame relation name (i.e. subFrame)"""
@@ -96,16 +100,19 @@ class Taxonomy:
         if not parent:   
             parent = self.root
             
-        parent_key = self._build_term_key(str(parent))
-        if not self.pat_taxonomy.has_key(parent_key): #Add parent to the root if it doesn't exist
-            self.pat_taxonomy.append(parent_key, type=self.root)
+        parent_key = self._build_term_key(parent)
+        #if not self.pat_taxonomy.has_key(parent_key): #Add parent to the root if it doesn't exist
+        #    logging.debug('Adding %s to root', parent_key)
+        #    self.pat_taxonomy.append(parent_key, type=self.root)
         
         if not self.pat_taxonomy.has_key(term_key):
+            logging.debug('Adding %s to %s', term_key, parent_key)
             self.pat_taxonomy.append(term_key, type=parent_key)
         
         if synonyms:
             for synonym in synonyms:
                 synonym_key = self._build_term_key(synonym, pos='na', lem=True)
+                logging.debug('Adding synonym %s for %s', synonym_key, term_key)
                 self.pat_taxonomy.append(synonym_key, type=term_key)           
 
     def search(self, name, pos=None, retry=False):
@@ -125,7 +132,7 @@ class Taxonomy:
             matches = [ match.split('.')[0] for match in matches]
         return matches
 
-    def children(self, name, pos=None, recurse=False, simplify=True):
+    def children(self, name, pos=None, recurse=False, simplify=False):
         matches = self.pat_taxonomy.children(self._build_term_key(name, pos), recursive=recurse)
         if matches:
             if simplify:
@@ -142,16 +149,25 @@ class Taxonomy:
     def frames(self, lu_name):
         return fn.frames_by_lemma(lu_name)                
 
+    def category(self, term, pos=None):
+        term_key = self._build_term_key(term, pos)
+        return self.pat_taxonomy.classify(term_key)
+                
+    def _exists(self, name, pos=None):
+        term_key = self._build_term_key(name, pos)
+        return self.pat_taxonomy.has_key(term_key)
+
     def _build_term_key(self, name, pos=None, lem=False):
-        if name == self.root:
+        #Don't do any normaliztion/transformation to root category
+        if name == self.root: 
             return name
 
         tokens = name.split('.')
-        if len(tokens) == 3:
+        if len(tokens) == 3:  #Wordnet format given
             name = tokens[0]
             pos = tokens[1]
             synid = tokens[2]
-        elif len(tokens) == 2:
+        elif len(tokens) == 2:  #Word.pos given
             name = tokens[0]
             pos = tokens[1]
 
@@ -161,17 +177,15 @@ class Taxonomy:
             term = name.lower()        
         
         if self.pos_sensitive:
-            tag = ''
+            tag = 'na'
             if pos: #Normalize to the simplified tag (if a tag was given)
                 if pos not in self.pos_category.SIMPLIFIED:
                     tag = self.pos_category.simplify_tag(pos)
                 else:
                     tag = pos
-            else:
-                tag = 'na'
             return term+'.'+tag
         else:
-            return term #TODO:  Handle pos in taxonomy search
+            return term
 
 
 

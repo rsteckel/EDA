@@ -3,6 +3,12 @@ from taxonomy import Taxonomy, print_taxonomy
 from semantic_search import TaxonomySearch
 from nltk.corpus import framenet as fn
 
+import pandas as pd
+import numpy as np
+
+from datasets.customers.tufamilia_dataset import TuFamilia
+
+
 
 frames = fn.frames('Medical_conditions')
 frames = fn.frames('Causation')
@@ -59,6 +65,20 @@ for relation in relations:
 
 
 
+taxonomy = Taxonomy('o360', pos_sensitive=True)
+taxonomy.add_category('health')
+taxonomy.add_category('disease', 'health')
+taxonomy.add_category('cancer', 'disease')
+taxonomy.add_category('diabetes', 'disease')
+
+
+print_taxonomy(taxonomy)
+
+
+
+
+
+
 
 document = """Cancer is a serious disease that affects many people. Tumors are 
                 the most common sign of cancer. Aerobics can prevent it."""
@@ -75,7 +95,7 @@ taxonomy.add_hyponyms('exercise.n.01', 'exercise')
 
 
 
-taxonomy = Taxonomy('o360')
+taxonomy = Taxonomy('o360', pos_sensitive=True)
 taxonomy.add_insight('treat-insight', 'health') #Add insight (relation) to 'health' domain
 
 taxonomy.add_entity('disease', 'treat-insight')  
@@ -101,11 +121,23 @@ taxonomy.add_example('remedy.n.02', 'treatment')
 
 
 
+
 print_taxonomy(taxonomy)
 
 
+taxonomy.parents('give.v', recurse=True)
+
+
+
+expand_hyponyms('give.v.19')
+
+
+s = wn.synset('give.v.19')
+
 
 s = TaxonomySearch(taxonomy)
+
+
 
 s.search(document, pattern='disease') #Search for the word 'disease'
 
@@ -118,18 +150,33 @@ s.search(document, pattern='EXERCISE') #Search for anything in the EXERCISE taxo
 
 
 
-from datasets.customers.tufamilia_dataset import TuFamilia
 
-dataset = TuFamilia('beauty')
 
+dataset = TuFamilia('health')
 dataset.load()
-dataset.store()
+#dataset.store()
 
 documents = dataset.documents()
-documents = documents[:250]
+documents = documents[:5]
+
+
 
 for document in documents:
-    s.search(document, pattern='TREATMENT * DISEASE or DISEASE * TREATMENT')
+    matches = s.document_contains(document, ['DISEASE', 'TREATMENT'])
+    if matches:
+        print matches
+
+            
+
+
+for document in documents:
+    matches = s.sentence_contains(document, ['DISEASE', 'TARGET'])
+    for m in matches:
+        print m[0], m[1]
+        print m[2]
+        print ''
+
+
 
 
 

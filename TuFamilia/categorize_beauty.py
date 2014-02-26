@@ -23,8 +23,6 @@ from nltk.metrics.distance import edit_distance, jaccard_distance, masi_distance
 
 
 
-
-
 def load_taxonomy(filename, use_stem=True):    
     stemmer = nltk.stem.PorterStemmer()
     
