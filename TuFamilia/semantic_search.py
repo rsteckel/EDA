@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from taxonomy import Taxonomy
 
-from pattern.en import parse, parsetree
+from pattern.en import parsetree
 from pattern.search import Pattern
 
 

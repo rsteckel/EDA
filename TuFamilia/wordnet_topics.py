@@ -7,8 +7,6 @@ import pandas as pd
 from taxonomy import POSCategory
 from pattern.en import parsetree
 
-from datasets.customers.tufamilia_dataset import TuFamilia
-
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 from nltk.corpus import framenet as fn
@@ -16,14 +14,6 @@ from nltk.corpus import wordnet as wn
 from nltk.corpus import stopwords as sw
 from nltk.corpus import wordnet_ic 
 from nltk import FreqDist
-
-
-#TODO:
-import enchant
-d = enchant.Dict("en_US")
-d.check("Hello")
-d.check("Helo")
-d.suggest("Helo")
 
 
 
@@ -97,9 +87,6 @@ def synset_pos_probability(synset, alpha=1.0):
     counts = icpos[synset._offset]
     return (alpha + counts) / (alpha + icpos[0]) #Divided by number of pos's
     
-    
-
-
 
 def window(fseq, window_size=5):
     for i in xrange(len(fseq) - window_size + 1):
@@ -174,39 +161,7 @@ def sense_tag2(parsed_document):
             else:
                 print '%10s %s' % (target_word.string, 'Unknown')
 
+    return parsed_document
 
 
-
-
-
-
-dataset = TuFamilia('health', query={'lang':'en'})
-dataset.load()
-#dataset.store()
-
-documents = dataset.documents()
-documents = documents
-
-corpus_terms = CorpusTerms(documents)
-corpus_terms.term_prob('diet', alpha=1)
-
-term_probs = corpus_terms.vocabulary_prob(alpha=1)
-term_set = [t[0] for t in term_probs[:1000]]
-
-
-
-test_docs1 = ['The bank of the river was flooded after the rainstorm']
-test_docs2 = ['I put my money in the bank to earn interest']
-
-
-sense_tag1(test_docs1)
-sense_tag1(test_docs2)
-print '-'*10
-sense_tag2(test_docs1)
-sense_tag2(test_docs2)
-
-
-
-sense_tag1(documents[:10])
-sense_tag2(documents[:10])
 
