@@ -11,7 +11,6 @@ import nltk
 import pattern.search as PS
 from pattern.en import lemma
 
-
 class POSCategory:
     def __init__(self):
         NOUN = {'NN','NNS','NNP','NNPS'}
@@ -37,11 +36,23 @@ class POSCategory:
         return 'na'
 
 
+def parents(term):
+    print 'parents:', term
+    return [term,]
+
+
+def children(term):
+    print 'children', term
+    return [term,]
+
+
     
 class Taxonomy:
     def __init__(self, root_name='root', pos_sensitive=False):
         self.root = root_name
         self.pat_taxonomy = PS.Taxonomy()
+        self.pat_taxonomy.append(PS.Classifier(parents, children))
+        
         self.pos_category = POSCategory()
         self.pos_sensitive = pos_sensitive
     
@@ -63,32 +74,38 @@ class Taxonomy:
             
         self.add_hyponyms(wn_example, entity)
     
-    def add_framenet_frame(self, name, parent=None, related=None):
+    def add_framenet_frame(self, framename, parent=None, frame_alias=None):
         """ related: frame relation name (i.e. subFrame)"""
-        frames = fn.frames(name)
+        frames = fn.frames(framename)
         if frames:
             if len(frames) > 1:
                 raise Exception('Frame name given resulted in multiple frames')
                 
             frame = frames[0]  #Take first match
-            self.add_category(frame.name, parent)
+            if frame_alias:                
+                self.add_category(frame_alias, parent)
+            else:
+                self.add_category(frame.name, parent)
             
             lus = frame['lexUnit'].keys()  
             for lu in lus:
                 tokens = lu.split('.')
-                self.add_category(tokens[0], frame.name, pos=tokens[1])
+                if frame_alias:
+                    self.add_category(tokens[0], frame_alias, pos=tokens[1])
+                else:
+                    self.add_category(tokens[0], frame.name, pos=tokens[1])
             
-            if related:
-                relations = frame['frameRelations']
-                for relation in relations:
-                    related_frame = relation[related]
-                    if related_frame.name != frame.name:
-                        self.add_category(related_frame.name, frame.name)
-                        
-                        lus = related_frame['lexUnit'].keys()
-                        for lu in lus:
-                            tokens = lu.split('.')
-                            self.add_category(tokens[0], related_frame.name, pos=tokens[1])
+#            if related:
+#                relations = frame['frameRelations']
+#                for relation in relations:
+#                    related_frame = relation[related]
+#                    if related_frame.name != frame.name:
+#                        self.add_category(related_frame.name, frame.name)
+#                        
+#                        lus = related_frame['lexUnit'].keys()
+#                        for lu in lus:
+#                            tokens = lu.split('.')
+#                            self.add_category(tokens[0], related_frame.name, pos=tokens[1])
         
     def add_hyponyms(self, synset_id, parent):
         expanded = expand_hyponyms(synset_id)

@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
-from taxonomy import Taxonomy, print_taxonomy
-from semantic_search import TaxonomySearch
+from extraction.taxonomy import Taxonomy, print_taxonomy
+from extraction.semantic_search import TaxonomySearch
 from nltk.corpus import framenet as fn
 
+import pattern.search as PS
+from pattern.search import Pattern, Classifier, search
+from pattern.en import parse, parsetree
+from pattern.en import wordnet as pwn
+from nltk.corpus import wordnet as wn
+from nltk.corpus import framenet as fn
 import pandas as pd
 import numpy as np
 
@@ -38,17 +44,14 @@ lu = fe_lus[3]
 
 
 
-
-
-
 frames = fn.frames(r'^Causation$')
 
+frames = fn.frames(r'Perception_active')
 frame = frames[0]  #Take first match
-
-
 lus = frame['lexUnit'].values()  
 for lu in lus:
     print lu.name
+
 
 
 
@@ -65,77 +68,7 @@ for relation in relations:
 
 
 
-taxonomy = Taxonomy('o360', pos_sensitive=True)
-taxonomy.add_category('health')
-taxonomy.add_category('disease', 'health')
-taxonomy.add_category('cancer', 'disease')
-taxonomy.add_category('diabetes', 'disease')
 
-
-print_taxonomy(taxonomy)
-
-
-
-
-
-
-
-document = """Cancer is a serious disease that affects many people. Tumors are 
-                the most common sign of cancer. Aerobics can prevent it."""
-
-
-taxonomy = Taxonomy('o360')
-taxonomy.add_category('disease', 'health')
-taxonomy.add_hyponyms('disease.n.01', 'disease')
-taxonomy.add_hyponyms('ill_health.n.01', 'disease')
-taxonomy.add_category('exercise', 'health')
-taxonomy.add_hyponyms('exercise.n.01', 'exercise')
-
-
-
-
-
-taxonomy = Taxonomy('o360', pos_sensitive=True)
-taxonomy.add_insight('treat-insight', 'health') #Add insight (relation) to 'health' domain
-
-taxonomy.add_entity('disease', 'treat-insight')  
-taxonomy.add_example('ill_health.n.01', 'disease')
-taxonomy.add_example('disease.n.01', 'disease')
-
-
-taxonomy.add_entity('target', 'treat-insight')  
-taxonomy.add_example('treat.v.03', 'target')
-taxonomy.add_example('cure.v.01', 'target')
-taxonomy.add_example('heal.v.01', 'target')
-taxonomy.add_example('alleviate.v.01', 'target')
-taxonomy.add_example('better.v.03', 'target')
-
-
-taxonomy.add_entity('treatment', 'treat-insight')  
-taxonomy.add_example('treatment.n.01', 'treatment')
-taxonomy.add_example('care.n.01', 'treatment')
-taxonomy.add_example('medicine.n.02', 'treatment')
-taxonomy.add_example('surgery.n.04', 'treatment')
-taxonomy.add_example('roentgenogram.n.01', 'treatment')
-taxonomy.add_example('remedy.n.02', 'treatment')
-
-
-
-
-print_taxonomy(taxonomy)
-
-
-taxonomy.parents('give.v', recurse=True)
-
-
-
-expand_hyponyms('give.v.19')
-
-
-s = wn.synset('give.v.19')
-
-
-s = TaxonomySearch(taxonomy)
 
 
 
@@ -179,6 +112,51 @@ for document in documents:
 
 
 
+
+
+
+perception = 'functional'
+
+for synset in pwn.synsets(perception, pwn.ADJECTIVE):
+    print synset
+    print synset.gloss
+    print synset.synonyms
+    print synset.hypernyms()
+    print ''
+print '-'*20            
+for synset in wn.synsets(perception, 'a'):
+    print synset.name()
+    print synset.definition()
+    print expand_hyponyms(synset.name())
+    print ''
+    
+    
+
+
+
+taxonomy = PS.Taxonomy()
+taxonomy.append('looks', type='perception')
+taxonomy.append('appears', type='perception')
+
+
+s = "Kiko foreign glitter that looks great in the shade."
+s = "I'm also thinking this polish would look amazing over black!"
+s = "Oh this is a great brush. Fluffy soft bristles and works like a charm."
+
+pattern = Pattern.fromstring('{SBJ?} * {PERCEPTION} * {JJ?} * {OBJ?} {OBJ?}', taxonomy=taxonomy, strict=True)
+
+#documents = [s]
+
+for document in documents:
+    parsed = parsetree(document, lemmata=True, relations=True)
+    for sentence in parsed.sentences:
+        matches = pattern.search(sentence)
+        if matches:
+            print sentence.string
+            for match in matches:
+                for c in match.constituents():
+                    print c
+            print ''
 
 
 
