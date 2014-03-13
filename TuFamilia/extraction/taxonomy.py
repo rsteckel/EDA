@@ -36,23 +36,11 @@ class POSCategory:
         return 'na'
 
 
-def parents(term):
-    print 'parents:', term
-    return [term,]
-
-
-def children(term):
-    print 'children', term
-    return [term,]
-
-
     
 class Taxonomy:
     def __init__(self, root_name='root', pos_sensitive=False):
         self.root = root_name
         self.pat_taxonomy = PS.Taxonomy()
-        self.pat_taxonomy.append(PS.Classifier(parents, children))
-        
         self.pos_category = POSCategory()
         self.pos_sensitive = pos_sensitive
     
@@ -73,6 +61,9 @@ class Taxonomy:
             raise Exception('Need to add entity before example')
             
         self.add_hyponyms(wn_example, entity)
+    
+    def add_classifier(self, classifier):
+        self.pat_taxonomy.append(classifier)
     
     def add_framenet_frame(self, framename, parent=None, frame_alias=None):
         """ related: frame relation name (i.e. subFrame)"""

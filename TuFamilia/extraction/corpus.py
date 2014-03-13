@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import collections
 
+from nltk.corpus import stopwords as sw
+ 
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 
